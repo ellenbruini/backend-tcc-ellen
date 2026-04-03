@@ -112,6 +112,7 @@ function processarArquivo(arquivo) {
     preview.style.display = "block";
     btnAnalisar.disabled = false;
     mostrarStatus("");
+    anunciar(`Imagem selecionada: ${arquivo.name}. Pressione Tab para ir ao botão Analisar Imagem.`);
 
     cardResultado.style.display = "none";
     respostaEl.style.display = "none";
@@ -177,19 +178,27 @@ function exibirDescricao(texto) {
 
 // ── Síntese de voz (Edge TTS neural via backend) ────────────────────
 
-let audioAtual = null;
+let audioAtual      = null;
+let fetchController = null;
 
 async function falar(texto) {
+  // Cancela requisição anterior se ainda estiver em andamento
+  if (fetchController) fetchController.abort();
   pararFala();
+
+  fetchController = new AbortController();
 
   btnFalar.style.display = "none";
   btnParar.style.display = "inline-flex";
+  btnParar.textContent   = "⏳ Aguarde…";
+  btnParar.disabled      = true;
 
   try {
     const resposta = await fetch("/tts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ texto }),
+      signal: fetchController.signal,
     });
 
     if (!resposta.ok) throw new Error("Erro ao gerar áudio");
@@ -200,11 +209,16 @@ async function falar(texto) {
     audioAtual = new Audio(url);
     audioAtual.playbackRate = parseFloat(sliderVel.value);
 
+    btnParar.textContent = "⏹ Parar";
+    btnParar.disabled    = false;
+
     audioAtual.onended = () => {
       URL.revokeObjectURL(url);
       audioAtual = null;
       btnFalar.style.display = "inline-flex";
       btnParar.style.display = "none";
+      btnParar.textContent   = "⏹ Parar";
+      btnParar.disabled      = false;
     };
 
     audioAtual.onerror = () => {
@@ -216,20 +230,71 @@ async function falar(texto) {
     audioAtual.play();
 
   } catch (err) {
+    if (err.name === "AbortError") return; // cancelado intencionalmente, sem erro
     console.error("Erro TTS:", err);
     btnFalar.style.display = "inline-flex";
     btnParar.style.display = "none";
+  } finally {
+    fetchController = null;
   }
 }
 
 function pararFala() {
-  if (audioAtual) {
-    audioAtual.pause();
-    audioAtual = null;
-  }
+  if (fetchController) { fetchController.abort(); fetchController = null; }
+  if (audioAtual) { audioAtual.pause(); audioAtual = null; }
+  window.speechSynthesis?.cancel();
   btnFalar.style.display = "inline-flex";
   btnParar.style.display = "none";
+  btnParar.textContent   = "⏹ Parar";
+  btnParar.disabled      = false;
 }
+
+// ── Anúncios de navegação (Web Speech API — instantâneo) ─────────────
+// Usado apenas para foco em elementos: resposta rápida é mais importante
+// que qualidade de voz nestas frases curtas.
+
+function anunciar(texto) {
+  if (audioAtual || fetchController) return; // não interrompe fala principal
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(texto);
+  u.lang = "pt-BR";
+  u.rate = 1.05;
+  window.speechSynthesis.speak(u);
+}
+
+// Foco em cada elemento interativo
+document.getElementById("btn-instrucoes").addEventListener("focus", () =>
+  anunciar("Botão: Ouvir Instruções de Uso. Pressione Enter para ouvir.")
+);
+
+dropZone.addEventListener("focus", () =>
+  anunciar("Área de seleção de imagem. Pressione Enter para escolher um arquivo do seu computador.")
+);
+
+btnAnalisar.addEventListener("focus", () => {
+  if (btnAnalisar.disabled) {
+    anunciar("Botão Analisar Imagem desativado. Selecione uma imagem primeiro.");
+  } else {
+    anunciar("Botão: Analisar Imagem. Pressione Enter para analisar.");
+  }
+});
+
+sliderVel.addEventListener("focus", () =>
+  anunciar(`Controle de velocidade da fala. Valor atual: ${sliderVel.value} vezes. Use as setas para ajustar.`)
+);
+
+btnFalar.addEventListener("focus", () =>
+  anunciar("Botão: Ouvir descrição novamente. Pressione Enter.")
+);
+
+btnParar.addEventListener("focus", () =>
+  anunciar("Botão: Parar leitura. Pressione Enter.")
+);
+
+btnCopiar.addEventListener("focus", () =>
+  anunciar("Botão: Copiar texto da descrição. Pressione Enter.")
+);
 
 btnFalar.addEventListener("click", () => {
   const texto = respostaEl.textContent;
