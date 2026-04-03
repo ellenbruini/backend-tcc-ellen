@@ -175,7 +175,6 @@ async function falar(texto) {
   pararFala();
 
   fetchController = new AbortController();
-  window.speechSynthesis?.cancel(); // para qualquer anúncio de navegação em curso
 
   btnFalar.style.display = "none";
   btnParar.style.display = "inline-flex";
