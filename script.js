@@ -98,7 +98,7 @@ function processarArquivo(arquivo) {
 
     preview.src = dataUrl;
     preview.style.display = "block";
-    btnAnalisar.disabled = false;
+    btnAnalisar.setAttribute("aria-disabled", "false");
     mostrarStatus("");
     anunciar(`Imagem selecionada: ${arquivo.name}. Pressione Tab para ir ao botão Analisar Imagem.`);
 
@@ -119,12 +119,13 @@ sliderVel.addEventListener("input", () => {
 btnAnalisar.addEventListener("click", analisar);
 
 async function analisar() {
+  if (btnAnalisar.getAttribute("aria-disabled") === "true") return;
   if (!imagemBase64) {
     mostrarStatus("Selecione uma imagem primeiro.", "err");
     return;
   }
 
-  btnAnalisar.disabled = true;
+  btnAnalisar.setAttribute("aria-disabled", "true");
   btnAnalisar.textContent = "Analisando…";
   mostrarStatus("Enviando imagem para a IA…");
   pararFala();
@@ -150,7 +151,7 @@ async function analisar() {
     mostrarStatus(`Erro: ${err.message}`, "err");
     console.error(err);
   } finally {
-    btnAnalisar.disabled = false;
+    btnAnalisar.setAttribute("aria-disabled", "false");
     btnAnalisar.textContent = "Analisar Imagem";
   }
 }
@@ -169,8 +170,10 @@ function exibirDescricao(texto) {
 let audioAtual      = null;
 let fetchController = null;
 
-async function falar(texto) {
-  // Cancela requisição anterior se ainda estiver em andamento
+async function falar(texto, forcarReinicio = false) {
+  // Se já está tocando e não é reinício explícito, mantém o fluxo atual
+  if ((audioAtual || fetchController) && !forcarReinicio) return;
+
   if (fetchController) fetchController.abort();
   pararFala();
 
@@ -288,7 +291,7 @@ btnCopiar.addEventListener("focus", () =>
 
 btnFalar.addEventListener("click", () => {
   const texto = respostaEl.textContent;
-  if (texto) falar(texto);
+  if (texto) falar(texto, true); // reinício explícito pelo usuário
 });
 
 btnParar.addEventListener("click", pararFala);

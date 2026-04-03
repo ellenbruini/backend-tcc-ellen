@@ -115,9 +115,9 @@
       transition: opacity 0.2s, transform 0.1s;
     }
 
-    .btn:hover:not(:disabled) { opacity: 0.88; }
-    .btn:active:not(:disabled) { transform: scale(0.97); }
-    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn:hover:not([aria-disabled="true"]) { opacity: 0.88; }
+    .btn:active:not([aria-disabled="true"]) { transform: scale(0.97); }
+    .btn[aria-disabled="true"] { opacity: 0.4; cursor: not-allowed; }
 
     .btn:focus-visible {
       outline: 3px solid #a78bfa;
@@ -225,7 +225,7 @@
     <p id="nome-arquivo" aria-live="polite"></p>
     <img id="preview" alt="Pré-visualização da imagem selecionada" />
 
-    <button class="btn btn-primary" id="btn-analisar" disabled aria-live="polite">
+    <button class="btn btn-primary" id="btn-analisar" aria-disabled="true" aria-live="polite">
       Analisar Imagem
     </button>
 
