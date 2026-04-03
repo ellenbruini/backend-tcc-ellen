@@ -21,7 +21,7 @@ app.post("/descrever", async (req, res) => {
     return res.status(400).json({ erro: "Campos imagemBase64 e mimeType são obrigatórios." });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     return res.status(500).json({ erro: "Chave da API não configurada no servidor." });
   }
