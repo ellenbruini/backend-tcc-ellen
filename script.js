@@ -171,7 +171,6 @@ let audioAtual      = null;
 let fetchController = null;
 
 async function falar(texto, forcarReinicio = false) {
-  // Se já está tocando e não é reinício explícito, mantém o fluxo atual
   if ((audioAtual || fetchController) && !forcarReinicio) return;
 
   if (fetchController) fetchController.abort();
@@ -185,26 +184,28 @@ async function falar(texto, forcarReinicio = false) {
   btnParar.disabled      = true;
 
   try {
-    const resposta = await fetch("/tts", {
+    // Passo 1: registra o texto no servidor e obtém a chave de streaming
+    const prepResp = await fetch("/tts-preparar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ texto }),
       signal: fetchController.signal,
     });
 
-    if (!resposta.ok) throw new Error("Erro ao gerar áudio");
+    if (!prepResp.ok) throw new Error("Erro ao preparar áudio");
+    const { chave } = await prepResp.json();
 
-    const blob = await resposta.blob();
-    const url  = URL.createObjectURL(blob);
-
+    // Passo 2: aponta o audio diretamente para o endpoint de streaming
+    // O navegador começa a tocar assim que os primeiros dados chegam
+    const url = `/tts/${chave}`;
     audioAtual = new Audio(url);
     audioAtual.playbackRate = parseFloat(sliderVel.value);
 
     btnParar.textContent = "⏹ Parar";
     btnParar.disabled    = false;
+    fetchController      = null;
 
     audioAtual.onended = () => {
-      URL.revokeObjectURL(url);
       audioAtual = null;
       btnFalar.style.display = "inline-flex";
       btnParar.style.display = "none";

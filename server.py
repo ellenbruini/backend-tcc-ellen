@@ -1,8 +1,10 @@
 import os
-import io
+import uuid
+import queue
 import asyncio
+import threading
 import requests
-from flask import Flask, request, jsonify, send_file, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, Response, stream_with_context
 from flask_cors import CORS
 from dotenv import load_dotenv
 import edge_tts
@@ -21,29 +23,22 @@ MODELOS_VISAO = [
 ]
 
 PROMPT = """
-Você é um sistema de descrição de imagens para pessoas com deficiência visual em contexto acadêmico e profissional.
-Sua descrição deve ser objetiva, técnica e completa, permitindo que a pessoa compreenda e utilize a imagem em seu trabalho ou estudo sem precisar vê-la.
+Você descreve imagens para uma pessoa que não pode vê-las, em contexto profissional ou acadêmico.
+Seja objetivo e natural, como um colega descrevendo algo em voz alta.
 
-Siga rigorosamente esta estrutura:
+Leia a imagem na ordem ocidental: de cima para baixo, da esquerda para a direita.
 
-1. TIPO: Identifique o tipo exato (fotografia, gráfico de barras, gráfico de linha, pizza, tabela, diagrama, fluxograma, captura de tela, infográfico, mapa, etc.).
+Se for um gráfico ou dado visual: comece pelo título, se houver. Identifique o tipo de gráfico. Descreva o eixo X: o que representa e quais são suas categorias ou valores. Descreva o eixo Y: o que representa, a unidade e a escala. Leia cada série de dados em ordem com seus valores exatos. Aponte o valor mais alto, o mais baixo e a tendência geral. Mencione legenda, fonte e notas, se houver.
 
-2. CONTEÚDO PRINCIPAL: Descreva o que está sendo representado, sem omitir nada relevante. Se for um gráfico ou dado numérico, leia todos os valores, rótulos, eixos, unidades de medida, legendas e tendências observadas. Se for uma tabela, leia todas as células. Se for texto, transcreva-o integralmente.
+Se for uma fotografia ou ilustração: descreva o que está em destaque no plano principal. Descreva pessoas presentes informando gênero aparente, tom de pele, expressão facial, postura, vestimenta e posição na cena. Descreva o ambiente e o plano de fundo. Leia qualquer texto visível na imagem.
 
-3. DETALHES VISUAIS: Descreva cores, formas, posições, proporções, escalas e qualquer elemento visual que impacte a interpretação do conteúdo.
+Se for uma tabela: descreva o que cada coluna representa e leia cada linha com todos os seus valores.
 
-4. PESSOAS (se houver): Descreva gênero aparente, tom de pele, expressão facial, postura, vestimenta e posição na imagem. Essas informações são relevantes para a compreensão do contexto.
-
-5. CONTEXTO E AMBIENTE: Descreva o cenário, plano de fundo e qualquer elemento que ajude a situar o conteúdo principal.
-
-6. INTERPRETAÇÃO TÉCNICA: Indique o que os dados ou a cena representam objetivamente — tendências, comparações, conclusões visíveis, sem especulações.
-
-Regras obrigatórias:
-- Escreva em português brasileiro, em parágrafos corridos, sem markdown, sem bullet points, sem títulos.
-- Nunca omita valores numéricos, nomes, datas ou textos presentes na imagem.
-- Nunca faça suposições além do que é visível.
-- Seja direto e técnico, sem rodeios ou linguagem poética.
+Regras obrigatórias: escreva em português brasileiro em parágrafos corridos, sem listas, sem títulos, sem markdown. Use linguagem direta e executiva. Nunca omita números, datas, nomes ou unidades de medida. Nunca especule além do que é visível na imagem.
 """.strip()
+
+# Cache temporário para streaming de TTS
+tts_cache = {}
 
 
 # Serve o frontend
@@ -116,30 +111,49 @@ def descrever():
     return jsonify({"erro": ultimo_erro}), 502
 
 
-# Endpoint de síntese de voz
-@app.route("/tts", methods=["POST"])
-def tts():
+# Prepara o texto para streaming — retorna uma chave temporária
+@app.route("/tts-preparar", methods=["POST"])
+def tts_preparar():
     data = request.get_json()
     texto = data.get("texto", "")
-
     if not texto:
         return jsonify({"erro": "Campo texto é obrigatório."}), 400
+    chave = str(uuid.uuid4())
+    tts_cache[chave] = texto
+    return jsonify({"chave": chave})
 
-    async def gerar_audio():
-        communicate = edge_tts.Communicate(texto, "pt-BR-FranciscaNeural")
-        buffer = io.BytesIO()
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                buffer.write(chunk["data"])
-        buffer.seek(0)
-        return buffer
 
-    try:
-        buffer = asyncio.run(gerar_audio())
-        return send_file(buffer, mimetype="audio/mpeg")
-    except Exception as e:
-        print(f"Erro TTS: {e}")
-        return jsonify({"erro": "Erro ao gerar áudio."}), 500
+# Streaming de áudio — o navegador começa a tocar assim que os primeiros chunks chegam
+@app.route("/tts/<chave>")
+def tts_stream(chave):
+    texto = tts_cache.pop(chave, None)
+    if not texto:
+        return "Chave inválida ou expirada", 404
+
+    q = queue.Queue()
+
+    def rodar_async():
+        async def _stream():
+            comm = edge_tts.Communicate(texto, "pt-BR-FranciscaNeural")
+            async for chunk in comm.stream():
+                if chunk["type"] == "audio":
+                    q.put(chunk["data"])
+            q.put(None)  # sinaliza fim
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(_stream())
+        loop.close()
+
+    threading.Thread(target=rodar_async, daemon=True).start()
+
+    def gerar():
+        while True:
+            chunk = q.get()
+            if chunk is None:
+                break
+            yield chunk
+
+    return Response(stream_with_context(gerar()), mimetype="audio/mpeg")
 
 
 if __name__ == "__main__":
