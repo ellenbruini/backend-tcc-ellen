@@ -43,38 +43,39 @@ Seja preciso, claro e use linguagem natural. Não use markdown nem listas — es
 `.trim();
 
   const corpo = {
-    contents: [
+    model: "google/gemini-2.0-flash-exp:free",
+    messages: [
       {
-        parts: [
-          { text: prompt },
-          { inline_data: { mime_type: mimeType, data: imagemBase64 } },
+        role: "user",
+        content: [
+          { type: "text", text: prompt },
+          { type: "image_url", image_url: { url: `data:${mimeType};base64,${imagemBase64}` } },
         ],
       },
     ],
-    generationConfig: {
-      temperature: 0.4,
-      maxOutputTokens: 1024,
-    },
+    max_tokens: 1024,
+    temperature: 0.4,
   };
 
   try {
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(corpo),
-      }
-    );
+    const apiRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+        "X-Title": "Descritor de Imagens Acessível",
+      },
+      body: JSON.stringify(corpo),
+    });
 
-    if (!geminiRes.ok) {
-      const err = await geminiRes.json().catch(() => ({}));
-      const msg = err?.error?.message || `Erro HTTP ${geminiRes.status}`;
+    if (!apiRes.ok) {
+      const err = await apiRes.json().catch(() => ({}));
+      const msg = err?.error?.message || `Erro HTTP ${apiRes.status}`;
       return res.status(502).json({ erro: msg });
     }
 
-    const dados = await geminiRes.json();
-    const texto = dados?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const dados = await apiRes.json();
+    const texto = dados?.choices?.[0]?.message?.content;
 
     if (!texto) {
       return res.status(502).json({ erro: "A IA não retornou uma descrição. Tente novamente." });
@@ -84,7 +85,7 @@ Seja preciso, claro e use linguagem natural. Não use markdown nem listas — es
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ erro: "Erro interno ao chamar a API Gemini." });
+    res.status(500).json({ erro: "Erro interno ao chamar a API." });
   }
 });
 
