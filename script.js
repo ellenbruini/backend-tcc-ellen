@@ -27,24 +27,10 @@ let imagemMime   = null;
 let instrucoesFaladas = false;
 
 const INSTRUCOES = `
-Bem-vindo ao Descritor de Imagens Acessível.
-Este aplicativo recebe uma imagem e lê em voz alta uma descrição detalhada do que ela contém. Ele foi criado para pessoas que não enxergam.
-
-Para navegar entre os elementos da página, use a tecla Tab para avançar e Shift mais Tab para voltar. Para ativar um botão, pressione Enter ou Espaço.
-
-O uso segue três passos simples.
-
-Passo um: escolher a imagem. Pressione Tab até ouvir "Clique ou pressione Enter para selecionar uma imagem". Pressione Enter. Uma janela do seu computador vai abrir para você escolher o arquivo. Navegue até a imagem e confirme. O nome do arquivo será anunciado quando a seleção for concluída.
-
-Passo dois: analisar. Após escolher a imagem, pressione Tab até ouvir "Analisar Imagem" e pressione Enter. Aguarde alguns segundos enquanto a inteligência artificial processa a imagem.
-
-Passo três: ouvir a descrição. Assim que a análise terminar, a descrição será lida automaticamente. Você não precisa fazer nada.
-
-Após a leitura, você terá três opções. O botão Ouvir repete a descrição. O botão Parar interrompe a leitura. O botão Copiar copia o texto para a área de transferência. Há também um controle deslizante para ajustar a velocidade da fala.
-
-Para ouvir estas instruções novamente a qualquer momento, pressione Tab até o botão Ouvir Instruções de Uso e pressione Enter.
-
-Agora, pressione Tab para ir ao campo de seleção de imagem e começar.
+Bem-vindo. Use Tab para navegar e Enter para confirmar.
+Passo 1: pressione Tab até ouvir "selecionar imagem" e pressione Enter para escolher o arquivo.
+Passo 2: pressione Tab até ouvir "Analisar Imagem" e pressione Enter.
+Passo 3: aguarde. A descrição será lida automaticamente assim que estiver pronta.
 `.trim();
 
 function falarInstrucoes() {
@@ -53,10 +39,12 @@ function falarInstrucoes() {
   falar(INSTRUCOES);
 }
 
-// Tenta falar na primeira interação do usuário com a página
-document.addEventListener("click",   falarInstrucoes, { once: true });
-document.addEventListener("keydown",  falarInstrucoes, { once: true });
+// Dispara instruções na primeira interação — Tab excluído para não bloquear navegação
+document.addEventListener("click",      falarInstrucoes, { once: true });
 document.addEventListener("touchstart", falarInstrucoes, { once: true });
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Tab" && e.key !== "Shift") falarInstrucoes();
+});
 
 // ── Upload: clique e drag-and-drop ──────────────
 
@@ -187,6 +175,7 @@ async function falar(texto) {
   pararFala();
 
   fetchController = new AbortController();
+  window.speechSynthesis?.cancel(); // para qualquer anúncio de navegação em curso
 
   btnFalar.style.display = "none";
   btnParar.style.display = "inline-flex";
@@ -250,17 +239,19 @@ function pararFala() {
 }
 
 // ── Anúncios de navegação (Web Speech API — instantâneo) ─────────────
-// Usado apenas para foco em elementos: resposta rápida é mais importante
-// que qualidade de voz nestas frases curtas.
+
+let timerAnuncio = null;
 
 function anunciar(texto) {
-  if (audioAtual || fetchController) return; // não interrompe fala principal
   if (!window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(texto);
-  u.lang = "pt-BR";
-  u.rate = 1.05;
-  window.speechSynthesis.speak(u);
+  clearTimeout(timerAnuncio);
+  timerAnuncio = setTimeout(() => {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(texto);
+    u.lang  = "pt-BR";
+    u.rate  = 1.05;
+    window.speechSynthesis.speak(u);
+  }, 150); // debounce: evita repetição por múltiplos eventos simultâneos
 }
 
 // Foco em cada elemento interativo
