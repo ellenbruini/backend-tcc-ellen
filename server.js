@@ -2,6 +2,7 @@ require("dotenv").config();
 const express    = require("express");
 const cors       = require("cors");
 const bodyParser = require("body-parser");
+const { MsEdgeTTS, OUTPUT_FORMAT } = require("msedge-tts");
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -12,6 +13,24 @@ app.use(bodyParser.json({ limit: "25mb" }));
 
 // Serve o frontend (index.html, script.js)
 app.use(express.static(__dirname));
+
+// ── Endpoint de síntese de voz (Edge TTS neural) ─────────────────────
+app.post("/tts", async (req, res) => {
+  const { texto } = req.body;
+  if (!texto) return res.status(400).json({ erro: "Campo texto é obrigatório." });
+
+  try {
+    const tts = new MsEdgeTTS();
+    await tts.setMetadata("pt-BR-FranciscaNeural", OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
+
+    res.setHeader("Content-Type", "audio/mpeg");
+    const { audioStream } = tts.toStream(texto);
+    audioStream.pipe(res);
+  } catch (err) {
+    console.error("Erro TTS:", err);
+    if (!res.headersSent) res.status(500).json({ erro: "Erro ao gerar áudio." });
+  }
+});
 
 const MODELOS_VISAO = [
   "google/gemma-3-27b-it:free",

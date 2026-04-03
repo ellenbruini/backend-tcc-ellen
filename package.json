@@ -9,6 +9,7 @@
     "body-parser": "*",
     "cors": "*",
     "dotenv": "*",
-    "express": "*"
+    "express": "*",
+    "msedge-tts": "^2.0.4"
   }
 }

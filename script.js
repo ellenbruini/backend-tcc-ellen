@@ -175,78 +175,58 @@ function exibirDescricao(texto) {
   respostaEl.focus();
 }
 
-// ── Síntese de voz ──────────────────────────────
+// ── Síntese de voz (Edge TTS neural via backend) ────────────────────
 
-// Armazena vozes assim que carregam (Chrome carrega async)
-let vozesDisponiveis = [];
+let audioAtual = null;
 
-function atualizarVozes() {
-  vozesDisponiveis = window.speechSynthesis.getVoices();
-}
-
-if (window.speechSynthesis) {
-  atualizarVozes();
-  window.speechSynthesis.onvoiceschanged = atualizarVozes;
-}
-
-function escolherMelhorVoz() {
-  // 1ª prioridade: voz neural Google pt-BR (Chrome — soa muito natural)
-  const google = vozesDisponiveis.find((v) =>
-    v.lang === "pt-BR" && v.name.toLowerCase().includes("google")
-  );
-  if (google) return google;
-
-  // 2ª prioridade: voz Microsoft pt-BR (Edge/Windows)
-  const microsoft = vozesDisponiveis.find((v) =>
-    v.lang === "pt-BR" && v.name.toLowerCase().includes("microsoft")
-  );
-  if (microsoft) return microsoft;
-
-  // 3ª prioridade: qualquer pt-BR
-  const ptBr = vozesDisponiveis.find((v) => v.lang === "pt-BR");
-  if (ptBr) return ptBr;
-
-  // 4ª prioridade: qualquer português
-  return vozesDisponiveis.find((v) => v.lang.startsWith("pt")) || null;
-}
-
-function falar(texto) {
-  if (!("speechSynthesis" in window)) {
-    mostrarStatus("Seu navegador não suporta síntese de voz.", "err");
-    return;
-  }
-
+async function falar(texto) {
   pararFala();
 
-  const utterance = new SpeechSynthesisUtterance(texto);
-  utterance.lang  = "pt-BR";
-  utterance.rate  = parseFloat(sliderVel.value);
-  utterance.pitch = 1.0;
-  utterance.volume = 1;
+  btnFalar.style.display = "none";
+  btnParar.style.display = "inline-flex";
 
-  const voz = escolherMelhorVoz();
-  if (voz) {
-    utterance.voice = voz;
-    console.log("Voz selecionada:", voz.name, voz.lang);
-  } else {
-    console.warn("Nenhuma voz pt-BR encontrada. Vozes disponíveis:", vozesDisponiveis.map(v => v.name));
-  }
+  try {
+    const resposta = await fetch("/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texto }),
+    });
 
-  utterance.onstart = () => {
-    btnFalar.style.display = "none";
-    btnParar.style.display = "inline-flex";
-  };
+    if (!resposta.ok) throw new Error("Erro ao gerar áudio");
 
-  utterance.onend = utterance.onerror = () => {
+    const blob = await resposta.blob();
+    const url  = URL.createObjectURL(blob);
+
+    audioAtual = new Audio(url);
+    audioAtual.playbackRate = parseFloat(sliderVel.value);
+
+    audioAtual.onended = () => {
+      URL.revokeObjectURL(url);
+      audioAtual = null;
+      btnFalar.style.display = "inline-flex";
+      btnParar.style.display = "none";
+    };
+
+    audioAtual.onerror = () => {
+      audioAtual = null;
+      btnFalar.style.display = "inline-flex";
+      btnParar.style.display = "none";
+    };
+
+    audioAtual.play();
+
+  } catch (err) {
+    console.error("Erro TTS:", err);
     btnFalar.style.display = "inline-flex";
     btnParar.style.display = "none";
-  };
-
-  window.speechSynthesis.speak(utterance);
+  }
 }
 
 function pararFala() {
-  window.speechSynthesis.cancel();
+  if (audioAtual) {
+    audioAtual.pause();
+    audioAtual = null;
+  }
   btnFalar.style.display = "inline-flex";
   btnParar.style.display = "none";
 }
