@@ -28,13 +28,23 @@ let instrucoesFaladas = false;
 
 const INSTRUCOES = `
 Bem-vindo ao Descritor de Imagens Acessível.
-Este site descreve imagens em voz alta para pessoas com deficiência visual.
-Veja como usar:
-Passo 1: clique na área de upload ou pressione Enter para selecionar uma imagem do seu computador.
-Passo 2: após escolher a imagem, pressione o botão Analisar Imagem.
-Passo 3: aguarde alguns segundos. A descrição será lida automaticamente.
-Para ouvir a descrição novamente, pressione o botão Ouvir. Para parar, pressione o botão Parar.
-Agora, clique na área de upload para começar.
+Este aplicativo recebe uma imagem e lê em voz alta uma descrição detalhada do que ela contém. Ele foi criado para pessoas que não enxergam.
+
+Para navegar entre os elementos da página, use a tecla Tab para avançar e Shift mais Tab para voltar. Para ativar um botão, pressione Enter ou Espaço.
+
+O uso segue três passos simples.
+
+Passo um: escolher a imagem. Pressione Tab até ouvir "Clique ou pressione Enter para selecionar uma imagem". Pressione Enter. Uma janela do seu computador vai abrir para você escolher o arquivo. Navegue até a imagem e confirme. O nome do arquivo será anunciado quando a seleção for concluída.
+
+Passo dois: analisar. Após escolher a imagem, pressione Tab até ouvir "Analisar Imagem" e pressione Enter. Aguarde alguns segundos enquanto a inteligência artificial processa a imagem.
+
+Passo três: ouvir a descrição. Assim que a análise terminar, a descrição será lida automaticamente. Você não precisa fazer nada.
+
+Após a leitura, você terá três opções. O botão Ouvir repete a descrição. O botão Parar interrompe a leitura. O botão Copiar copia o texto para a área de transferência. Há também um controle deslizante para ajustar a velocidade da fala.
+
+Para ouvir estas instruções novamente a qualquer momento, pressione Tab até o botão Ouvir Instruções de Uso e pressione Enter.
+
+Agora, pressione Tab para ir ao campo de seleção de imagem e começar.
 `.trim();
 
 function falarInstrucoes() {
