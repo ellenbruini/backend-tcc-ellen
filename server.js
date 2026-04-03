@@ -13,6 +13,14 @@ app.use(bodyParser.json({ limit: "25mb" }));
 // Serve o frontend (index.html, script.js)
 app.use(express.static(__dirname));
 
+const MODELOS_VISAO = [
+  "google/gemma-3-27b-it:free",
+  "google/gemma-3-12b-it:free",
+  "moonshotai/kimi-vl-a3b-thinking:free",
+  "nvidia/nemotron-nano-12b-v2-vl:free",
+  "qwen/qwen2.5-vl-32b-instruct:free",
+];
+
 // ── Endpoint principal ───────────────────────────────────────────────
 app.post("/descrever", async (req, res) => {
   const { imagemBase64, mimeType } = req.body;
@@ -42,51 +50,56 @@ Siga esta ordem:
 Seja preciso, claro e use linguagem natural. Não use markdown nem listas — escreva em parágrafos corridos.
 `.trim();
 
-  const corpo = {
-    model: "mistralai/mistral-small-3.1-24b-instruct:free",
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "text", text: prompt },
-          { type: "image_url", image_url: { url: `data:${mimeType};base64,${imagemBase64}` } },
-        ],
-      },
-    ],
-    max_tokens: 1024,
-    temperature: 0.4,
-  };
+  const mensagens = [
+    {
+      role: "user",
+      content: [
+        { type: "text", text: prompt },
+        { type: "image_url", image_url: { url: `data:${mimeType};base64,${imagemBase64}` } },
+      ],
+    },
+  ];
 
-  try {
-    const apiRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-        "X-Title": "Descritor de Imagens Acessível",
-      },
-      body: JSON.stringify(corpo),
-    });
+  let ultimoErro = "Nenhum modelo disponível no momento. Tente novamente mais tarde.";
 
-    if (!apiRes.ok) {
-      const err = await apiRes.json().catch(() => ({}));
-      const msg = err?.error?.message || `Erro HTTP ${apiRes.status}`;
-      return res.status(502).json({ erro: msg });
+  for (const modelo of MODELOS_VISAO) {
+    try {
+      const apiRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+          "X-Title": "Descritor de Imagens Acessível",
+        },
+        body: JSON.stringify({ model: modelo, messages: mensagens, max_tokens: 1024, temperature: 0.4 }),
+      });
+
+      if (!apiRes.ok) {
+        const err = await apiRes.json().catch(() => ({}));
+        ultimoErro = err?.error?.message || `Erro HTTP ${apiRes.status}`;
+        console.warn(`Modelo ${modelo} falhou: ${ultimoErro}`);
+        continue;
+      }
+
+      const dados = await apiRes.json();
+      const texto = dados?.choices?.[0]?.message?.content;
+
+      if (!texto) {
+        ultimoErro = "A IA não retornou uma descrição.";
+        console.warn(`Modelo ${modelo} não retornou texto.`);
+        continue;
+      }
+
+      console.log(`Modelo usado: ${modelo}`);
+      return res.json({ descricao: texto.trim() });
+
+    } catch (err) {
+      ultimoErro = "Erro interno ao chamar a API.";
+      console.error(`Erro com modelo ${modelo}:`, err);
     }
-
-    const dados = await apiRes.json();
-    const texto = dados?.choices?.[0]?.message?.content;
-
-    if (!texto) {
-      return res.status(502).json({ erro: "A IA não retornou uma descrição. Tente novamente." });
-    }
-
-    res.json({ descricao: texto.trim() });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ erro: "Erro interno ao chamar a API." });
   }
+
+  res.status(502).json({ erro: ultimoErro });
 });
 
 app.listen(PORT, () => {
