@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Descritor de Imagens Acessível</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f0f1a;
+      color: #e8e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      margin-bottom: 0.4rem;
+      color: #a78bfa;
+      text-align: center;
+    }
+
+    .subtitle {
+      font-size: 0.95rem;
+      color: #9ca3af;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    .card {
+      background: #1a1a2e;
+      border: 1px solid #2d2d4e;
+      border-radius: 12px;
+      padding: 1.5rem;
+      width: 100%;
+      max-width: 640px;
+      margin-bottom: 1.2rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: #a78bfa;
+      margin-bottom: 0.4rem;
+      font-weight: bold;
+    }
+
+    input[type="password"],
+    input[type="text"] {
+      width: 100%;
+      padding: 0.7rem 1rem;
+      border-radius: 8px;
+      border: 1px solid #3d3d6e;
+      background: #12122b;
+      color: #e8e8f0;
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    input[type="password"]:focus,
+    input[type="text"]:focus {
+      border-color: #a78bfa;
+    }
+
+    .upload-area {
+      border: 2px dashed #3d3d6e;
+      border-radius: 10px;
+      padding: 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      margin-top: 0.5rem;
+    }
+
+    .upload-area:hover,
+    .upload-area:focus-within {
+      border-color: #a78bfa;
+      background: #1f1f38;
+    }
+
+    .upload-area p { color: #9ca3af; font-size: 0.9rem; margin-top: 0.5rem; }
+
+    #file-input { display: none; }
+
+    #preview {
+      display: none;
+      max-width: 100%;
+      max-height: 280px;
+      border-radius: 8px;
+      margin-top: 1rem;
+      object-fit: contain;
+    }
+
+    #nome-arquivo {
+      font-size: 0.82rem;
+      color: #6b7280;
+      margin-top: 0.4rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    .btn:hover:not(:disabled) { opacity: 0.88; }
+    .btn:active:not(:disabled) { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn:focus-visible {
+      outline: 3px solid #a78bfa;
+      outline-offset: 3px;
+    }
+
+    .btn-primary { background: #7c3aed; color: #fff; width: 100%; justify-content: center; margin-top: 1rem; }
+    .btn-speak  { background: #1d4ed8; color: #fff; }
+    .btn-stop   { background: #7f1d1d; color: #fff; }
+    .btn-copy   { background: #065f46; color: #fff; }
+
+    .acoes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-top: 1rem;
+    }
+
+    #status {
+      font-size: 0.9rem;
+      color: #facc15;
+      min-height: 1.2em;
+      margin-top: 0.8rem;
+      text-align: center;
+    }
+
+    #status.ok  { color: #4ade80; }
+    #status.err { color: #f87171; }
+
+    #resposta {
+      background: #12122b;
+      border: 1px solid #2d2d4e;
+      border-radius: 8px;
+      padding: 1rem;
+      font-size: 1rem;
+      line-height: 1.7;
+      min-height: 80px;
+      white-space: pre-wrap;
+      color: #e8e8f0;
+      display: none;
+    }
+
+    .barra-velocidade {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      margin-top: 0.6rem;
+    }
+
+    .barra-velocidade label { margin: 0; font-size: 0.82rem; color: #9ca3af; }
+
+    input[type="range"] {
+      accent-color: #a78bfa;
+      cursor: pointer;
+    }
+
+    #val-velocidade { font-size: 0.82rem; color: #a78bfa; min-width: 2.5ch; }
+
+    footer {
+      font-size: 0.78rem;
+      color: #4b5563;
+      margin-top: 1.5rem;
+      text-align: center;
+    }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px; height: 1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      white-space: nowrap;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Descritor de Imagens Acessível</h1>
+  <p class="subtitle">Envie uma imagem e ouça uma descrição detalhada em português</p>
+
+  <!-- Upload -->
+  <section class="card" aria-labelledby="titulo-upload">
+    <h2 id="titulo-upload" class="visually-hidden">Envio de imagem</h2>
+    <label for="file-input">Imagem</label>
+    <div
+      class="upload-area"
+      role="button"
+      tabindex="0"
+      aria-label="Clique ou pressione Enter para selecionar uma imagem"
+      id="drop-zone"
+    >
+      <span aria-hidden="true" style="font-size:2rem;">🖼️</span>
+      <p>Clique aqui ou arraste uma imagem</p>
+      <p>JPG, PNG, WebP, GIF — até 20 MB</p>
+    </div>
+    <input type="file" id="file-input" accept="image/*" aria-label="Selecionar imagem do computador" />
+    <p id="nome-arquivo" aria-live="polite"></p>
+    <img id="preview" alt="Pré-visualização da imagem selecionada" />
+
+    <button class="btn btn-primary" id="btn-analisar" disabled aria-live="polite">
+      Analisar Imagem
+    </button>
+
+    <p id="status" role="status" aria-live="polite" aria-atomic="true"></p>
+  </section>
+
+  <!-- Resultado -->
+  <section class="card" id="card-resultado" aria-labelledby="titulo-resultado" style="display:none;">
+    <h2 id="titulo-resultado" style="font-size:1rem;color:#a78bfa;margin-bottom:0.8rem;">Descrição gerada</h2>
+
+    <div id="resposta" role="region" aria-label="Descrição da imagem" tabindex="0"></div>
+
+    <div class="barra-velocidade" aria-label="Velocidade de leitura">
+      <label for="velocidade">Velocidade:</label>
+      <input type="range" id="velocidade" min="0.5" max="2" step="0.1" value="1" aria-valuemin="0.5" aria-valuemax="2" />
+      <span id="val-velocidade" aria-live="polite">1×</span>
+    </div>
+
+    <div class="acoes">
+      <button class="btn btn-speak" id="btn-falar" aria-label="Ouvir descrição">
+        🔊 Ouvir
+      </button>
+      <button class="btn btn-stop" id="btn-parar" aria-label="Parar leitura" style="display:none;">
+        ⏹ Parar
+      </button>
+      <button class="btn btn-copy" id="btn-copiar" aria-label="Copiar texto da descrição">
+        📋 Copiar
+      </button>
+    </div>
+  </section>
+
+  <footer>
+    Powered by Google Gemini 2.0 Flash · Web Speech API · Feito para acessibilidade
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
