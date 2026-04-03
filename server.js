@@ -43,7 +43,7 @@ Seja preciso, claro e use linguagem natural. Não use markdown nem listas — es
 `.trim();
 
   const corpo = {
-    model: "qwen/qwen2.5-vl-72b-instruct:free",
+    model: "mistralai/mistral-small-3.1-24b-instruct:free",
     messages: [
       {
         role: "user",
