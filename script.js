@@ -167,22 +167,37 @@ function exibirDescricao(texto) {
 
 // ── Síntese de voz ──────────────────────────────
 
+// Armazena vozes assim que carregam (Chrome carrega async)
+let vozesDisponiveis = [];
+
+function atualizarVozes() {
+  vozesDisponiveis = window.speechSynthesis.getVoices();
+}
+
+if (window.speechSynthesis) {
+  atualizarVozes();
+  window.speechSynthesis.onvoiceschanged = atualizarVozes;
+}
+
 function escolherMelhorVoz() {
-  const vozes = window.speechSynthesis.getVoices();
-
-  // 1ª prioridade: vozes neurais do Google ou Microsoft em pt-BR
-  const neural = vozes.find((v) =>
-    (v.lang === "pt-BR") &&
-    (v.name.includes("Google") || v.name.includes("Microsoft"))
+  // 1ª prioridade: voz neural Google pt-BR (Chrome — soa muito natural)
+  const google = vozesDisponiveis.find((v) =>
+    v.lang === "pt-BR" && v.name.toLowerCase().includes("google")
   );
-  if (neural) return neural;
+  if (google) return google;
 
-  // 2ª prioridade: qualquer voz pt-BR
-  const ptBr = vozes.find((v) => v.lang === "pt-BR");
+  // 2ª prioridade: voz Microsoft pt-BR (Edge/Windows)
+  const microsoft = vozesDisponiveis.find((v) =>
+    v.lang === "pt-BR" && v.name.toLowerCase().includes("microsoft")
+  );
+  if (microsoft) return microsoft;
+
+  // 3ª prioridade: qualquer pt-BR
+  const ptBr = vozesDisponiveis.find((v) => v.lang === "pt-BR");
   if (ptBr) return ptBr;
 
-  // 3ª prioridade: qualquer voz portuguesa
-  return vozes.find((v) => v.lang.startsWith("pt")) || null;
+  // 4ª prioridade: qualquer português
+  return vozesDisponiveis.find((v) => v.lang.startsWith("pt")) || null;
 }
 
 function falar(texto) {
@@ -194,13 +209,18 @@ function falar(texto) {
   pararFala();
 
   const utterance = new SpeechSynthesisUtterance(texto);
-  utterance.lang = "pt-BR";
-  utterance.rate = parseFloat(sliderVel.value);
-  utterance.pitch = 1.05;   // levemente mais natural que o padrão (1.0)
+  utterance.lang  = "pt-BR";
+  utterance.rate  = parseFloat(sliderVel.value);
+  utterance.pitch = 1.0;
   utterance.volume = 1;
 
   const voz = escolherMelhorVoz();
-  if (voz) utterance.voice = voz;
+  if (voz) {
+    utterance.voice = voz;
+    console.log("Voz selecionada:", voz.name, voz.lang);
+  } else {
+    console.warn("Nenhuma voz pt-BR encontrada. Vozes disponíveis:", vozesDisponiveis.map(v => v.name));
+  }
 
   utterance.onstart = () => {
     btnFalar.style.display = "none";
@@ -255,12 +275,6 @@ btnInstrucoes.addEventListener("click", () => {
   instrucoesFaladas = false; // permite repetir ao clicar no botão
   falarInstrucoes();
 });
-
-if (window.speechSynthesis) {
-  window.speechSynthesis.onvoiceschanged = () => {
-    window.speechSynthesis.getVoices();
-  };
-}
 
 // Foca no botão de instruções ao carregar para facilitar acesso via teclado
 window.addEventListener("load", () => {
