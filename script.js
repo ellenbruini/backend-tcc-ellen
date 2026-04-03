@@ -251,13 +251,13 @@ function anunciar(texto) {
   if (!window.speechSynthesis) return;
   clearTimeout(timerAnuncio);
   timerAnuncio = setTimeout(() => {
-    // Para o áudio principal definitivamente ao navegar
-    if (audioAtual) {
-      audioAtual.pause();
-      audioAtual = null;
-      btnFalar.style.display = "inline-flex";
-      btnParar.style.display = "none";
-    }
+    // Para tudo definitivamente ao navegar — fetch em andamento e áudio
+    if (fetchController) { fetchController.abort(); fetchController = null; }
+    if (audioAtual) { audioAtual.pause(); audioAtual = null; }
+    btnFalar.style.display = "inline-flex";
+    btnParar.style.display = "none";
+    btnParar.textContent = "⏹ Parar";
+    btnParar.disabled    = false;
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(texto);
     u.lang  = "pt-BR";
