@@ -100,7 +100,8 @@ function processarArquivo(arquivo) {
     preview.style.display = "block";
     btnAnalisar.setAttribute("aria-disabled", "false");
     mostrarStatus("");
-    anunciar(`Imagem selecionada: ${arquivo.name}. Pressione Tab para ir ao botão Analisar Imagem.`);
+    btnAnalisar.focus();
+    anunciar(`Imagem selecionada: ${arquivo.name}. Pressione Enter para analisar.`);
 
     cardResultado.style.display = "none";
     respostaEl.style.display = "none";
