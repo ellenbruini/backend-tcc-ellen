@@ -100,8 +100,10 @@ function processarArquivo(arquivo) {
     preview.style.display = "block";
     btnAnalisar.setAttribute("aria-disabled", "false");
     mostrarStatus("");
-    btnAnalisar.focus();
-    anunciar(`Imagem selecionada: ${arquivo.name}. Pressione Enter para analisar.`);
+    setTimeout(() => {
+      btnAnalisar.focus();
+      anunciar(`Imagem selecionada: ${arquivo.name}. Pressione Enter para analisar.`);
+    }, 300);
 
     cardResultado.style.display = "none";
     respostaEl.style.display = "none";
@@ -249,12 +251,19 @@ function anunciar(texto) {
   if (!window.speechSynthesis) return;
   clearTimeout(timerAnuncio);
   timerAnuncio = setTimeout(() => {
+    // Para o áudio principal definitivamente ao navegar
+    if (audioAtual) {
+      audioAtual.pause();
+      audioAtual = null;
+      btnFalar.style.display = "inline-flex";
+      btnParar.style.display = "none";
+    }
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(texto);
     u.lang  = "pt-BR";
     u.rate  = 1.05;
     window.speechSynthesis.speak(u);
-  }, 150); // debounce: evita repetição por múltiplos eventos simultâneos
+  }, 150);
 }
 
 // Foco em cada elemento interativo
