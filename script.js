@@ -39,20 +39,16 @@ function falarInstrucoes() {
   falar(INSTRUCOES);
 }
 
-// Dispara instruções na primeira interação — Tab excluído para não bloquear navegação
-document.addEventListener("click",      falarInstrucoes, { once: true });
-document.addEventListener("touchstart", falarInstrucoes, { once: true });
-document.addEventListener("keydown", (e) => {
-  if (e.key !== "Tab" && e.key !== "Shift") falarInstrucoes();
-});
+// Instruções só tocam pelo botão explícito — sem auto-disparo em qualquer clique
 
 // ── Upload: clique e drag-and-drop ──────────────
 
-dropZone.addEventListener("click", () => inputArquivo.click());
+dropZone.addEventListener("click", () => { pararFala(); inputArquivo.click(); });
 
 dropZone.addEventListener("keydown", (e) => {
   if (e.key === "Enter" || e.key === " ") {
     e.preventDefault();
+    pararFala();
     inputArquivo.click();
   }
 });
@@ -119,7 +115,7 @@ sliderVel.addEventListener("input", () => {
 
 // ── Botão Analisar ──────────────────────────────
 
-btnAnalisar.addEventListener("click", analisar);
+btnAnalisar.addEventListener("click", () => { pararFala(); analisar(); });
 
 async function analisar() {
   if (btnAnalisar.getAttribute("aria-disabled") === "true") return;
