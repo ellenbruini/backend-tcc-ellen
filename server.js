@@ -43,7 +43,7 @@ Seja preciso, claro e use linguagem natural. Não use markdown nem listas — es
 `.trim();
 
   const corpo = {
-    model: "google/gemini-2.0-flash-exp:free",
+    model: "meta-llama/llama-3.2-11b-vision-instruct:free",
     messages: [
       {
         role: "user",
