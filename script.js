@@ -24,6 +24,29 @@ const valVel        = document.getElementById("val-velocidade");
 
 let imagemBase64 = null;
 let imagemMime   = null;
+let instrucoesFaladas = false;
+
+const INSTRUCOES = `
+Bem-vindo ao Descritor de Imagens Acessível.
+Este site descreve imagens em voz alta para pessoas com deficiência visual.
+Veja como usar:
+Passo 1: clique na área de upload ou pressione Enter para selecionar uma imagem do seu computador.
+Passo 2: após escolher a imagem, pressione o botão Analisar Imagem.
+Passo 3: aguarde alguns segundos. A descrição será lida automaticamente.
+Para ouvir a descrição novamente, pressione o botão Ouvir. Para parar, pressione o botão Parar.
+Agora, clique na área de upload para começar.
+`.trim();
+
+function falarInstrucoes() {
+  if (instrucoesFaladas) return;
+  instrucoesFaladas = true;
+  falar(INSTRUCOES);
+}
+
+// Tenta falar na primeira interação do usuário com a página
+document.addEventListener("click",   falarInstrucoes, { once: true });
+document.addEventListener("keydown",  falarInstrucoes, { once: true });
+document.addEventListener("touchstart", falarInstrucoes, { once: true });
 
 // ── Upload: clique e drag-and-drop ──────────────
 
@@ -144,6 +167,24 @@ function exibirDescricao(texto) {
 
 // ── Síntese de voz ──────────────────────────────
 
+function escolherMelhorVoz() {
+  const vozes = window.speechSynthesis.getVoices();
+
+  // 1ª prioridade: vozes neurais do Google ou Microsoft em pt-BR
+  const neural = vozes.find((v) =>
+    (v.lang === "pt-BR") &&
+    (v.name.includes("Google") || v.name.includes("Microsoft"))
+  );
+  if (neural) return neural;
+
+  // 2ª prioridade: qualquer voz pt-BR
+  const ptBr = vozes.find((v) => v.lang === "pt-BR");
+  if (ptBr) return ptBr;
+
+  // 3ª prioridade: qualquer voz portuguesa
+  return vozes.find((v) => v.lang.startsWith("pt")) || null;
+}
+
 function falar(texto) {
   if (!("speechSynthesis" in window)) {
     mostrarStatus("Seu navegador não suporta síntese de voz.", "err");
@@ -155,10 +196,11 @@ function falar(texto) {
   const utterance = new SpeechSynthesisUtterance(texto);
   utterance.lang = "pt-BR";
   utterance.rate = parseFloat(sliderVel.value);
+  utterance.pitch = 1.05;   // levemente mais natural que o padrão (1.0)
+  utterance.volume = 1;
 
-  const vozes = window.speechSynthesis.getVoices();
-  const vozPtBr = vozes.find((v) => v.lang === "pt-BR" || v.lang.startsWith("pt"));
-  if (vozPtBr) utterance.voice = vozPtBr;
+  const voz = escolherMelhorVoz();
+  if (voz) utterance.voice = voz;
 
   utterance.onstart = () => {
     btnFalar.style.display = "none";
@@ -208,8 +250,19 @@ function mostrarStatus(msg, tipo = "") {
   statusEl.className = tipo;
 }
 
+const btnInstrucoes = document.getElementById("btn-instrucoes");
+btnInstrucoes.addEventListener("click", () => {
+  instrucoesFaladas = false; // permite repetir ao clicar no botão
+  falarInstrucoes();
+});
+
 if (window.speechSynthesis) {
   window.speechSynthesis.onvoiceschanged = () => {
     window.speechSynthesis.getVoices();
   };
 }
+
+// Foca no botão de instruções ao carregar para facilitar acesso via teclado
+window.addEventListener("load", () => {
+  btnInstrucoes.focus();
+});
