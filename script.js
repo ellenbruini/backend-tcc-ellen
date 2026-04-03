@@ -128,6 +128,7 @@ async function analisar() {
   btnAnalisar.textContent = "Analisando…";
   mostrarStatus("Enviando imagem para a IA…");
   pararFala();
+  anunciar("Descrição está sendo gerada, aguarde alguns instantes!");
 
   try {
     const resposta = await fetch(API_URL, {
@@ -144,7 +145,7 @@ async function analisar() {
 
     exibirDescricao(dados.descricao);
     mostrarStatus("Descrição gerada com sucesso!", "ok");
-    falar(dados.descricao);
+    falar(dados.descricao, true); // forcarReinicio garante que sempre toca
 
   } catch (err) {
     mostrarStatus(`Erro: ${err.message}`, "err");
