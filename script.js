@@ -23,7 +23,7 @@ let suprimirFocoZona   = false; // evita que o foco no dropZone cancele a fala d
 
 const INSTRUCOES = `
 Bem-vindo ao Descritor de Imagens Acessível. Para melhor experiência, use um computador.
-Pressione Tab para selecionar uma imagem e Enter para confirmar. A descrição começa automaticamente.
+Pressione Enter para selecionar uma imagem. A descrição começa automaticamente.
 `.trim();
 
 function falarInstrucoes() {
@@ -225,13 +225,9 @@ function falarWebSpeech(texto, aoTerminar) {
 
 // ── Anúncios de foco (navegação por Tab) ────────
 
-document.getElementById("btn-instrucoes").addEventListener("focus", () =>
-  falarWebSpeech("Ouvir Instruções. Pressione Enter.")
-);
-
 dropZone.addEventListener("focus", () => {
   if (suprimirFocoZona) return;
-  falarWebSpeech("Área de seleção de imagem. Pressione Enter para escolher um arquivo.");
+  falarWebSpeech("Selecionar imagem. Pressione Enter para abrir o seletor de arquivos.");
 });
 
 btnAnalisar.addEventListener("focus", () => {
@@ -277,7 +273,3 @@ function mostrarStatus(msg, tipo = "") {
   statusEl.className   = tipo;
 }
 
-document.getElementById("btn-instrucoes").addEventListener("click", () => {
-  instrucoesFaladas = false;
-  falarInstrucoes();
-});
