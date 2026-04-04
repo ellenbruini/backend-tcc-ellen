@@ -13,9 +13,6 @@ app = Flask(__name__)
 CORS(app)
 
 MODELOS_VISAO = [
-    "google/gemma-3-27b-it:free",
-    "google/gemma-3-12b-it:free",
-    "moonshotai/kimi-vl-a3b-thinking:free",
     "nvidia/nemotron-nano-12b-v2-vl:free",
     "qwen/qwen2.5-vl-32b-instruct:free",
 ]
