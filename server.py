@@ -14,7 +14,10 @@ CORS(app)
 
 MODELOS_VISAO = [
     "nvidia/nemotron-nano-12b-v2-vl:free",
-    "qwen/qwen2.5-vl-32b-instruct:free",
+    "qwen/qwen2.5-vl-7b-instruct:free",
+    "qwen/qwen2-vl-7b-instruct:free",
+    "meta-llama/llama-3.2-11b-vision-instruct:free",
+    "google/gemma-3-27b-it:free",
 ]
 
 PROMPT = """
