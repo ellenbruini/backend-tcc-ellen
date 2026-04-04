@@ -22,9 +22,8 @@ let suprimirFocoZona   = false; // evita que o foco no dropZone cancele a fala d
 // ── Bem-vindo automático ────────────────────────
 
 const INSTRUCOES = `
-Bem-vindo ao Descritor de Imagens Acessível.
-Pressione Tab para ir à área de seleção de imagem e Enter para escolher o arquivo.
-A descrição começa automaticamente após a seleção.
+Bem-vindo ao Descritor de Imagens Acessível. Para melhor experiência, use um computador.
+Pressione Tab para selecionar uma imagem e Enter para confirmar. A descrição começa automaticamente.
 `.trim();
 
 function falarInstrucoes() {
