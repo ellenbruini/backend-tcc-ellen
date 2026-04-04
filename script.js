@@ -1,13 +1,5 @@
-// ────────────────────────────────────────────────
-//  Descritor de Imagens Acessível
-//  Backend: Node.js/Express (chama Google Gemini)
-//  Voz: Web Speech API nativa do navegador
-// ────────────────────────────────────────────────
-
-// Aponta para o próprio servidor — funciona tanto local quanto em produção
 const API_URL = "/descrever";
 
-// ── Elementos da interface ──────────────────────
 const inputArquivo  = document.getElementById("file-input");
 const dropZone      = document.getElementById("drop-zone");
 const preview       = document.getElementById("preview");
@@ -24,57 +16,48 @@ const valVel        = document.getElementById("val-velocidade");
 
 let imagemBase64 = null;
 let imagemMime   = null;
-let instrucoesFaladas = false;
+let instrucoesFaladas  = false;
+let suprimirFocoZona   = false; // evita que o foco no dropZone cancele a fala do nome
+
+// ── Bem-vindo automático ────────────────────────
 
 const INSTRUCOES = `
-Bem-vindo. Use Tab para navegar e Enter para confirmar.
-Passo 1: pressione Tab até ouvir "selecionar imagem" e pressione Enter para abrir o seletor de arquivos.
-Passo 2: escolha a imagem no seu computador e confirme. A análise começa automaticamente.
-Passo 3: aguarde alguns segundos. A descrição será lida assim que estiver pronta.
-Se quiser ouvir novamente, pressione Tab até o botão Ouvir e pressione Enter.
+Bem-vindo ao Descritor de Imagens Acessível.
+Pressione Tab para ir à área de seleção de imagem e Enter para escolher o arquivo.
+A descrição começa automaticamente após a seleção.
 `.trim();
 
 function falarInstrucoes() {
   if (instrucoesFaladas) return;
   instrucoesFaladas = true;
-  // Web Speech API: instantâneo, sem requisição de rede, sem bloqueio de autoplay
-  if (!window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(INSTRUCOES);
-  u.lang = "pt-BR";
-  u.rate = 1.0;
-  window.speechSynthesis.speak(u);
+  falarWebSpeech(INSTRUCOES);
 }
 
-// Dispara bem-vindo automaticamente ao carregar a página
-window.addEventListener("load", () => setTimeout(falarInstrucoes, 500));
+window.addEventListener("load", () => setTimeout(falarInstrucoes, 600));
 
-// ── Upload: clique e drag-and-drop ──────────────
+// ── Upload ──────────────────────────────────────
 
-dropZone.addEventListener("click", () => { pararFala(); inputArquivo.click(); });
+dropZone.addEventListener("click", () => {
+  suprimirFocoZona = true;
+  pararFala();
+  inputArquivo.click();
+});
 
 dropZone.addEventListener("keydown", (e) => {
   if (e.key === "Enter" || e.key === " ") {
     e.preventDefault();
+    suprimirFocoZona = true;
     pararFala();
     inputArquivo.click();
   }
 });
 
-dropZone.addEventListener("dragover", (e) => {
-  e.preventDefault();
-  dropZone.style.borderColor = "#a78bfa";
-});
-
-dropZone.addEventListener("dragleave", () => {
-  dropZone.style.borderColor = "";
-});
-
+dropZone.addEventListener("dragover",  (e) => { e.preventDefault(); dropZone.style.borderColor = "#a78bfa"; });
+dropZone.addEventListener("dragleave", ()  => { dropZone.style.borderColor = ""; });
 dropZone.addEventListener("drop", (e) => {
   e.preventDefault();
   dropZone.style.borderColor = "";
-  const arquivo = e.dataTransfer.files[0];
-  if (arquivo) processarArquivo(arquivo);
+  if (e.dataTransfer.files[0]) processarArquivo(e.dataTransfer.files[0]);
 });
 
 inputArquivo.addEventListener("change", () => {
@@ -83,12 +66,11 @@ inputArquivo.addEventListener("change", () => {
 
 function processarArquivo(arquivo) {
   if (!arquivo.type.startsWith("image/")) {
-    mostrarStatus("Por favor, selecione um arquivo de imagem.", "err");
+    falarWebSpeech("Por favor, selecione um arquivo de imagem.");
     return;
   }
-
   if (arquivo.size > 20 * 1024 * 1024) {
-    mostrarStatus("Arquivo muito grande. O limite é 20 MB.", "err");
+    falarWebSpeech("Arquivo muito grande. O limite é vinte megabytes.");
     return;
   }
 
@@ -96,130 +78,106 @@ function processarArquivo(arquivo) {
   nomeArquivo.textContent = `Arquivo: ${arquivo.name}`;
 
   const reader = new FileReader();
-  reader.onload = (e) => {
-    const dataUrl = e.target.result;
-    imagemBase64 = dataUrl.split(",")[1];
-
-    preview.src = dataUrl;
+  reader.onload = (ev) => {
+    imagemBase64 = ev.target.result.split(",")[1];
+    preview.src  = ev.target.result;
     preview.style.display = "block";
     btnAnalisar.setAttribute("aria-disabled", "false");
     mostrarStatus("");
     cardResultado.style.display = "none";
-    respostaEl.style.display = "none";
+    respostaEl.style.display    = "none";
 
-    // Fala o nome do arquivo e só inicia a análise após terminar de falar
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(`Arquivo selecionado: ${arquivo.name}.`);
-    u.lang = "pt-BR";
-    u.rate = 1.0;
-    u.onend = () => analisar();
-    window.speechSynthesis.speak(u);
+    // Fala o nome e ao terminar inicia a análise
+    // suprimirFocoZona evita que o listener do dropZone cancele esta fala
+    falarWebSpeech(`Arquivo selecionado: ${arquivo.name}.`, () => {
+      suprimirFocoZona = false;
+      analisar();
+    });
   };
   reader.readAsDataURL(arquivo);
 }
 
-// ── Velocidade de leitura ───────────────────────
+// ── Velocidade ──────────────────────────────────
 
 sliderVel.addEventListener("input", () => {
   valVel.textContent = `${sliderVel.value}×`;
 });
 
-// ── Botão Analisar ──────────────────────────────
+// ── Analisar ────────────────────────────────────
 
 btnAnalisar.addEventListener("click", () => { pararFala(); analisar(); });
 
 async function analisar() {
   if (btnAnalisar.getAttribute("aria-disabled") === "true") return;
-  if (!imagemBase64) {
-    mostrarStatus("Selecione uma imagem primeiro.", "err");
-    return;
-  }
+  if (!imagemBase64) { falarWebSpeech("Selecione uma imagem primeiro."); return; }
 
   btnAnalisar.setAttribute("aria-disabled", "true");
   btnAnalisar.textContent = "Analisando…";
-  mostrarStatus("Enviando imagem para a IA…");
-  pararFala();
-  anunciar("Descrição está sendo gerada, aguarde alguns instantes!");
+  mostrarStatus("Analisando…");
+  falarWebSpeech("Descrição sendo gerada, aguarde.");
 
   try {
-    const resposta = await fetch(API_URL, {
+    const resp  = await fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imagemBase64, mimeType: imagemMime }),
     });
-
-    const dados = await resposta.json();
-
-    if (!resposta.ok) {
-      throw new Error(dados.erro || `Erro ${resposta.status}`);
-    }
+    const dados = await resp.json();
+    if (!resp.ok) throw new Error(dados.erro || `Erro ${resp.status}`);
 
     exibirDescricao(dados.descricao);
-    mostrarStatus("Descrição gerada com sucesso!", "ok");
-    falar(dados.descricao, true); // forcarReinicio garante que sempre toca
+    mostrarStatus("Descrição gerada!", "ok");
+    falar(dados.descricao, true);
 
   } catch (err) {
     mostrarStatus(`Erro: ${err.message}`, "err");
-    console.error(err);
+    falarWebSpeech(`Erro: ${err.message}`);
   } finally {
     btnAnalisar.setAttribute("aria-disabled", "false");
     btnAnalisar.textContent = "Analisar Imagem";
   }
 }
 
-// ── Exibir descrição ────────────────────────────
-
 function exibirDescricao(texto) {
   respostaEl.textContent = texto;
   respostaEl.style.display = "block";
   cardResultado.style.display = "block";
-  respostaEl.focus();
 }
 
-// ── Síntese de voz (Edge TTS neural via backend) ────────────────────
+// ── TTS principal — Edge TTS via backend ────────
 
 let fetchController = null;
-
-// Elemento de áudio reutilizável — criado uma vez e desbloqueado no primeiro clique
 const audioEl = new Audio();
 
-// Desbloqueia autoplay do browser no primeiro clique do usuário
 document.addEventListener("click", () => {
-  // Toca um silêncio curtíssimo para "acordar" o contexto de áudio
   audioEl.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
   audioEl.play().catch(() => {});
 }, { once: true });
 
 async function falar(texto, forcarReinicio = false) {
-  if ((audioEl.src && !audioEl.paused && !audioEl.ended) && !forcarReinicio) return;
+  if (!forcarReinicio && !audioEl.paused && !audioEl.ended) return;
   if (fetchController) fetchController.abort();
-
   audioEl.pause();
   window.speechSynthesis?.cancel();
 
   fetchController = new AbortController();
-
   btnFalar.style.display = "none";
   btnParar.style.display = "inline-flex";
   btnParar.textContent   = "⏳ Aguarde…";
   btnParar.disabled      = true;
 
   try {
-    const resposta = await fetch("/tts", {
+    const resp = await fetch("/tts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ texto }),
       signal: fetchController.signal,
     });
+    if (!resp.ok) throw new Error("Erro ao gerar áudio");
 
-    if (!resposta.ok) throw new Error("Erro ao gerar áudio");
-
-    const blob = await resposta.blob();
-    const url  = URL.createObjectURL(blob);
-
+    const url = URL.createObjectURL(await resp.blob());
     audioEl.src          = url;
     audioEl.playbackRate = parseFloat(sliderVel.value);
-
     btnParar.textContent = "⏹ Parar";
     btnParar.disabled    = false;
 
@@ -227,17 +185,13 @@ async function falar(texto, forcarReinicio = false) {
       URL.revokeObjectURL(url);
       btnFalar.style.display = "inline-flex";
       btnParar.style.display = "none";
-      btnParar.textContent   = "⏹ Parar";
-      btnParar.disabled      = false;
     };
-
     audioEl.onerror = () => {
       btnFalar.style.display = "inline-flex";
       btnParar.style.display = "none";
     };
 
     await audioEl.play();
-
   } catch (err) {
     if (err.name === "AbortError") return;
     console.error("Erro TTS:", err);
@@ -258,81 +212,62 @@ function pararFala() {
   btnParar.disabled      = false;
 }
 
-// ── Anúncios de navegação (Web Speech API — instantâneo) ─────────────
+// ── Web Speech API — anúncios instantâneos ──────
 
-let timerAnuncio = null;
-
-function anunciar(texto) {
-  if (!window.speechSynthesis) return;
-  clearTimeout(timerAnuncio);
-  timerAnuncio = setTimeout(() => {
-    // Para tudo definitivamente ao navegar — fetch em andamento e áudio
-    if (fetchController) { fetchController.abort(); fetchController = null; }
-    audioEl.pause();
-    btnFalar.style.display = "inline-flex";
-    btnParar.style.display = "none";
-    btnParar.textContent = "⏹ Parar";
-    btnParar.disabled    = false;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(texto);
-    u.lang  = "pt-BR";
-    u.rate  = 1.05;
-    window.speechSynthesis.speak(u);
-  }, 150);
+function falarWebSpeech(texto, aoTerminar) {
+  if (!window.speechSynthesis) { if (aoTerminar) aoTerminar(); return; }
+  window.speechSynthesis.cancel();
+  const u  = new SpeechSynthesisUtterance(texto);
+  u.lang   = "pt-BR";
+  u.rate   = 1.0;
+  if (aoTerminar) u.onend = aoTerminar;
+  window.speechSynthesis.speak(u);
 }
 
-// Foco em cada elemento interativo
+// ── Anúncios de foco (navegação por Tab) ────────
+
 document.getElementById("btn-instrucoes").addEventListener("focus", () =>
-  anunciar("Botão: Ouvir Instruções de Uso. Pressione Enter para ouvir.")
+  falarWebSpeech("Ouvir Instruções. Pressione Enter.")
 );
 
-dropZone.addEventListener("focus", () =>
-  anunciar("Área de seleção de imagem. Pressione Enter para escolher um arquivo do seu computador.")
-);
+dropZone.addEventListener("focus", () => {
+  if (suprimirFocoZona) return;
+  falarWebSpeech("Área de seleção de imagem. Pressione Enter para escolher um arquivo.");
+});
 
 btnAnalisar.addEventListener("focus", () => {
-  if (btnAnalisar.disabled) {
-    anunciar("Botão Analisar Imagem desativado. Selecione uma imagem primeiro.");
-  } else {
-    anunciar("Botão: Analisar Imagem. Pressione Enter para analisar.");
-  }
+  const desativado = btnAnalisar.getAttribute("aria-disabled") === "true";
+  falarWebSpeech(desativado
+    ? "Botão Analisar desativado. Selecione uma imagem primeiro."
+    : "Botão Analisar Imagem. Pressione Enter.");
 });
 
 sliderVel.addEventListener("focus", () =>
-  anunciar(`Controle de velocidade da fala. Valor atual: ${sliderVel.value} vezes. Use as setas para ajustar.`)
+  falarWebSpeech(`Velocidade: ${sliderVel.value} vezes. Use as setas para ajustar.`)
 );
+btnFalar.addEventListener("focus",  () => falarWebSpeech("Ouvir descrição. Pressione Enter."));
+btnParar.addEventListener("focus",  () => falarWebSpeech("Parar leitura. Pressione Enter."));
+btnCopiar.addEventListener("focus", () => falarWebSpeech("Copiar texto. Pressione Enter."));
 
-btnFalar.addEventListener("focus", () =>
-  anunciar("Botão: Ouvir descrição novamente. Pressione Enter.")
-);
-
-btnParar.addEventListener("focus", () =>
-  anunciar("Botão: Parar leitura. Pressione Enter.")
-);
-
-btnCopiar.addEventListener("focus", () =>
-  anunciar("Botão: Copiar texto da descrição. Pressione Enter.")
-);
+// ── Botões de controle de áudio ─────────────────
 
 btnFalar.addEventListener("click", () => {
   const texto = respostaEl.textContent;
-  if (texto) falar(texto, true); // reinício explícito pelo usuário
+  if (texto) falar(texto, true);
 });
-
 btnParar.addEventListener("click", pararFala);
 
-// ── Copiar texto ────────────────────────────────
+// ── Copiar ──────────────────────────────────────
 
 btnCopiar.addEventListener("click", async () => {
   const texto = respostaEl.textContent;
   if (!texto) return;
-
   try {
     await navigator.clipboard.writeText(texto);
     btnCopiar.textContent = "✅ Copiado!";
     setTimeout(() => (btnCopiar.textContent = "📋 Copiar"), 2000);
   } catch {
-    mostrarStatus("Não foi possível copiar automaticamente.", "err");
+    mostrarStatus("Não foi possível copiar.", "err");
   }
 });
 
@@ -340,13 +275,10 @@ btnCopiar.addEventListener("click", async () => {
 
 function mostrarStatus(msg, tipo = "") {
   statusEl.textContent = msg;
-  statusEl.className = tipo;
+  statusEl.className   = tipo;
 }
 
-const btnInstrucoes = document.getElementById("btn-instrucoes");
-btnInstrucoes.addEventListener("click", () => {
+document.getElementById("btn-instrucoes").addEventListener("click", () => {
   instrucoesFaladas = false;
   falarInstrucoes();
 });
-
-// Sem auto-foco nem auto-fala ao carregar — só fala quando o usuário interagir
