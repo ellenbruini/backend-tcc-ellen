@@ -22,8 +22,7 @@ let suprimirFocoZona   = false; // evita que o foco no dropZone cancele a fala d
 // ── Bem-vindo automático ────────────────────────
 
 const INSTRUCOES = `
-Bem-vindo ao Descritor de Imagens Acessível. Para melhor experiência, use um computador.
-Pressione Enter para selecionar uma imagem. A descrição começa automaticamente.
+Bem-vindo ao Descritor de Imagens Acessível. Para melhor navegação, use um computador. Pressione Tab para navegar até o campo de imagem.
 `.trim();
 
 function falarInstrucoes() {
@@ -227,7 +226,7 @@ function falarWebSpeech(texto, aoTerminar) {
 
 dropZone.addEventListener("focus", () => {
   if (suprimirFocoZona) return;
-  falarWebSpeech("Selecionar imagem. Pressione Enter para abrir o seletor de arquivos.");
+  falarWebSpeech("Campo de imagem. Pressione Enter para escolher o arquivo. A análise começa automaticamente.");
 });
 
 btnAnalisar.addEventListener("focus", () => {
