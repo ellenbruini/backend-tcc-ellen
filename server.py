@@ -43,6 +43,9 @@ def static_files(filename):
 
 
 # Endpoint de descrição de imagem
+# SEGURANÇA: a imagem é processada exclusivamente em memória RAM.
+# Nunca é salva em disco, nunca é logada. Transmissão protegida por HTTPS.
+# A imagem é enviada à API OpenRouter apenas para análise e não é retida pelo servidor.
 @app.route("/descrever", methods=["POST"])
 def descrever():
     data = request.get_json()

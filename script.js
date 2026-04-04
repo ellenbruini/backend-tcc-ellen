@@ -28,9 +28,10 @@ let instrucoesFaladas = false;
 
 const INSTRUCOES = `
 Bem-vindo. Use Tab para navegar e Enter para confirmar.
-Passo 1: pressione Tab até ouvir "selecionar imagem" e pressione Enter para escolher o arquivo.
-Passo 2: pressione Tab até ouvir "Analisar Imagem" e pressione Enter.
-Passo 3: aguarde. A descrição será lida automaticamente assim que estiver pronta.
+Passo 1: pressione Tab até ouvir "selecionar imagem" e pressione Enter para abrir o seletor de arquivos.
+Passo 2: escolha a imagem no seu computador e confirme. A análise começa automaticamente.
+Passo 3: aguarde alguns segundos. A descrição será lida assim que estiver pronta.
+Se quiser ouvir novamente, pressione Tab até o botão Ouvir e pressione Enter.
 `.trim();
 
 function falarInstrucoes() {
@@ -96,13 +97,12 @@ function processarArquivo(arquivo) {
     preview.style.display = "block";
     btnAnalisar.setAttribute("aria-disabled", "false");
     mostrarStatus("");
-    setTimeout(() => {
-      btnAnalisar.focus();
-      anunciar(`Imagem selecionada: ${arquivo.name}. Pressione Enter para analisar.`);
-    }, 300);
-
     cardResultado.style.display = "none";
     respostaEl.style.display = "none";
+
+    // Anuncia o nome do arquivo e já inicia a análise automaticamente
+    anunciar(`Arquivo selecionado: ${arquivo.name}. Iniciando análise.`);
+    setTimeout(() => analisar(), 400);
   };
   reader.readAsDataURL(arquivo);
 }
@@ -334,11 +334,8 @@ function mostrarStatus(msg, tipo = "") {
 
 const btnInstrucoes = document.getElementById("btn-instrucoes");
 btnInstrucoes.addEventListener("click", () => {
-  instrucoesFaladas = false; // permite repetir ao clicar no botão
+  instrucoesFaladas = false;
   falarInstrucoes();
 });
 
-// Foca no botão de instruções ao carregar para facilitar acesso via teclado
-window.addEventListener("load", () => {
-  btnInstrucoes.focus();
-});
+// Sem auto-foco nem auto-fala ao carregar — só fala quando o usuário interagir
