@@ -46,13 +46,8 @@ function falarInstrucoes() {
   window.speechSynthesis.speak(u);
 }
 
-// Dispara bem-vindo no primeiro Tab (usuário "entra" na página via teclado)
-// ou no primeiro clique (usuário com mouse)
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Tab") falarInstrucoes();
-}, { once: true });
-
-document.addEventListener("click", falarInstrucoes, { once: true });
+// Dispara bem-vindo automaticamente ao carregar a página
+window.addEventListener("load", () => setTimeout(falarInstrucoes, 500));
 
 // ── Upload: clique e drag-and-drop ──────────────
 
