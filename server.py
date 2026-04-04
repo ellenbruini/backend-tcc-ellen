@@ -1,10 +1,8 @@
 import os
-import uuid
-import queue
+import io
 import asyncio
-import threading
 import requests
-from flask import Flask, request, jsonify, send_from_directory, Response, stream_with_context
+from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 import edge_tts
@@ -36,10 +34,6 @@ Se for uma tabela: descreva o que cada coluna representa e leia cada linha com t
 
 Regras obrigatórias: escreva em português brasileiro em parágrafos corridos, sem listas, sem títulos, sem markdown. Use linguagem direta e executiva. Nunca omita números, datas, nomes ou unidades de medida. Nunca especule além do que é visível na imagem.
 """.strip()
-
-# Cache temporário para streaming de TTS
-tts_cache = {}
-
 
 # Serve o frontend
 @app.route("/")
@@ -111,49 +105,30 @@ def descrever():
     return jsonify({"erro": ultimo_erro}), 502
 
 
-# Prepara o texto para streaming — retorna uma chave temporária
-@app.route("/tts-preparar", methods=["POST"])
-def tts_preparar():
+# Endpoint de síntese de voz
+@app.route("/tts", methods=["POST"])
+def tts():
     data = request.get_json()
     texto = data.get("texto", "")
+
     if not texto:
         return jsonify({"erro": "Campo texto é obrigatório."}), 400
-    chave = str(uuid.uuid4())
-    tts_cache[chave] = texto
-    return jsonify({"chave": chave})
 
+    async def gerar_audio():
+        communicate = edge_tts.Communicate(texto, "pt-BR-FranciscaNeural")
+        buffer = io.BytesIO()
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                buffer.write(chunk["data"])
+        buffer.seek(0)
+        return buffer
 
-# Streaming de áudio — o navegador começa a tocar assim que os primeiros chunks chegam
-@app.route("/tts/<chave>")
-def tts_stream(chave):
-    texto = tts_cache.pop(chave, None)
-    if not texto:
-        return "Chave inválida ou expirada", 404
-
-    q = queue.Queue()
-
-    def rodar_async():
-        async def _stream():
-            comm = edge_tts.Communicate(texto, "pt-BR-FranciscaNeural")
-            async for chunk in comm.stream():
-                if chunk["type"] == "audio":
-                    q.put(chunk["data"])
-            q.put(None)  # sinaliza fim
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(_stream())
-        loop.close()
-
-    threading.Thread(target=rodar_async, daemon=True).start()
-
-    def gerar():
-        while True:
-            chunk = q.get()
-            if chunk is None:
-                break
-            yield chunk
-
-    return Response(stream_with_context(gerar()), mimetype="audio/mpeg")
+    try:
+        buffer = asyncio.run(gerar_audio())
+        return send_file(buffer, mimetype="audio/mpeg")
+    except Exception as e:
+        print(f"Erro TTS: {e}")
+        return jsonify({"erro": "Erro ao gerar áudio."}), 500
 
 
 if __name__ == "__main__":
