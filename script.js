@@ -167,14 +167,24 @@ function exibirDescricao(texto) {
 
 // ── Síntese de voz (Edge TTS neural via backend) ────────────────────
 
-let audioAtual      = null;
 let fetchController = null;
 
-async function falar(texto, forcarReinicio = false) {
-  if ((audioAtual || fetchController) && !forcarReinicio) return;
+// Elemento de áudio reutilizável — criado uma vez e desbloqueado no primeiro clique
+const audioEl = new Audio();
 
+// Desbloqueia autoplay do browser no primeiro clique do usuário
+document.addEventListener("click", () => {
+  // Toca um silêncio curtíssimo para "acordar" o contexto de áudio
+  audioEl.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+  audioEl.play().catch(() => {});
+}, { once: true });
+
+async function falar(texto, forcarReinicio = false) {
+  if ((audioEl.src && !audioEl.paused && !audioEl.ended) && !forcarReinicio) return;
   if (fetchController) fetchController.abort();
-  pararFala();
+
+  audioEl.pause();
+  window.speechSynthesis?.cancel();
 
   fetchController = new AbortController();
 
@@ -196,31 +206,29 @@ async function falar(texto, forcarReinicio = false) {
     const blob = await resposta.blob();
     const url  = URL.createObjectURL(blob);
 
-    audioAtual = new Audio(url);
-    audioAtual.playbackRate = parseFloat(sliderVel.value);
+    audioEl.src          = url;
+    audioEl.playbackRate = parseFloat(sliderVel.value);
 
     btnParar.textContent = "⏹ Parar";
     btnParar.disabled    = false;
 
-    audioAtual.onended = () => {
+    audioEl.onended = () => {
       URL.revokeObjectURL(url);
-      audioAtual = null;
       btnFalar.style.display = "inline-flex";
       btnParar.style.display = "none";
       btnParar.textContent   = "⏹ Parar";
       btnParar.disabled      = false;
     };
 
-    audioAtual.onerror = () => {
-      audioAtual = null;
+    audioEl.onerror = () => {
       btnFalar.style.display = "inline-flex";
       btnParar.style.display = "none";
     };
 
-    audioAtual.play();
+    await audioEl.play();
 
   } catch (err) {
-    if (err.name === "AbortError") return; // cancelado intencionalmente, sem erro
+    if (err.name === "AbortError") return;
     console.error("Erro TTS:", err);
     btnFalar.style.display = "inline-flex";
     btnParar.style.display = "none";
@@ -231,7 +239,7 @@ async function falar(texto, forcarReinicio = false) {
 
 function pararFala() {
   if (fetchController) { fetchController.abort(); fetchController = null; }
-  if (audioAtual) { audioAtual.pause(); audioAtual = null; }
+  audioEl.pause();
   window.speechSynthesis?.cancel();
   btnFalar.style.display = "inline-flex";
   btnParar.style.display = "none";
@@ -249,7 +257,7 @@ function anunciar(texto) {
   timerAnuncio = setTimeout(() => {
     // Para tudo definitivamente ao navegar — fetch em andamento e áudio
     if (fetchController) { fetchController.abort(); fetchController = null; }
-    if (audioAtual) { audioAtual.pause(); audioAtual = null; }
+    audioEl.pause();
     btnFalar.style.display = "inline-flex";
     btnParar.style.display = "none";
     btnParar.textContent = "⏹ Parar";
