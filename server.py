@@ -83,7 +83,7 @@ def descrever():
                     "Authorization": f"Bearer {api_key}",
                     "X-Title": "Descritor de Imagens Acessível",
                 },
-                json={"model": modelo, "messages": mensagens, "max_tokens": 1024, "temperature": 0.4},
+                json={"model": modelo, "messages": mensagens, "max_tokens": 2048, "temperature": 0.4},
                 timeout=60,
             )
 
