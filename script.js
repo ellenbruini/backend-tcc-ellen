@@ -22,7 +22,7 @@ let suprimirFocoZona   = false; // evita que o foco no dropZone cancele a fala d
 // ── Bem-vindo automático ────────────────────────
 
 const INSTRUCOES = `
-Bem-vindo ao Descritor de Imagens Acessível. Use um computador para melhor navegação. Pressione Enter para carregar uma imagem. Se necessário, use Tab para navegar até o botão.
+Bem-vindo ao Descritor de Imagens Acessível. Pressione Enter para carregar uma imagem. Se necessário, use Tab para navegar até o botão.
 `.trim();
 
 function falarInstrucoes() {
@@ -112,7 +112,7 @@ async function analisar() {
   btnAnalisar.setAttribute("aria-disabled", "true");
   btnAnalisar.textContent = "Analisando…";
   mostrarStatus("Analisando…");
-  falarWebSpeech("Descrição sendo gerada, aguarde.");
+  falarWebSpeech("Descrição sendo gerada, aguarde. Ela será lida automaticamente com som assim que estiver pronta.");
 
   try {
     const resp  = await fetch(API_URL, {
