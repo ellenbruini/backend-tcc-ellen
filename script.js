@@ -107,9 +107,13 @@ function processarArquivo(arquivo) {
     cardResultado.style.display = "none";
     respostaEl.style.display = "none";
 
-    // Anuncia o nome do arquivo e já inicia a análise automaticamente
-    anunciar(`Arquivo selecionado: ${arquivo.name}. Iniciando análise.`);
-    setTimeout(() => analisar(), 400);
+    // Fala o nome do arquivo e só inicia a análise após terminar de falar
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(`Arquivo selecionado: ${arquivo.name}.`);
+    u.lang = "pt-BR";
+    u.rate = 1.0;
+    u.onend = () => analisar();
+    window.speechSynthesis.speak(u);
   };
   reader.readAsDataURL(arquivo);
 }
