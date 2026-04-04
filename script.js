@@ -37,10 +37,22 @@ Se quiser ouvir novamente, pressione Tab até o botão Ouvir e pressione Enter.
 function falarInstrucoes() {
   if (instrucoesFaladas) return;
   instrucoesFaladas = true;
-  falar(INSTRUCOES);
+  // Web Speech API: instantâneo, sem requisição de rede, sem bloqueio de autoplay
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(INSTRUCOES);
+  u.lang = "pt-BR";
+  u.rate = 1.0;
+  window.speechSynthesis.speak(u);
 }
 
-// Instruções só tocam pelo botão explícito — sem auto-disparo em qualquer clique
+// Dispara bem-vindo no primeiro Tab (usuário "entra" na página via teclado)
+// ou no primeiro clique (usuário com mouse)
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Tab") falarInstrucoes();
+}, { once: true });
+
+document.addEventListener("click", falarInstrucoes, { once: true });
 
 // ── Upload: clique e drag-and-drop ──────────────
 
